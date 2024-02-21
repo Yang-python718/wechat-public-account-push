@@ -55,6 +55,9 @@ SWITCH: {
     // 填 false 则不使用，按需关闭不使用的功能可以提高运行速度
     courseSchedule: false,
   },
+  /** 是否给文字设置多彩颜色, 和emoji不兼容 */
+  // 如果您使用了微信测试号的模板中含有emoji表情，请填 false
+  IS_SHOW_COLOR: false,
   USERS: [
     {
       // 想要发送的人的名字
@@ -62,7 +65,7 @@ SWITCH: {
       // 使用微信测试号：扫码关注你的微信测试号后生成的一段字符串，在测试号后台能看到
       id: 'ohVwP60wV2FxuMvDeNYHTZLKXXww',
       // 使用微信测试号：你想对他发送的模板消息的模板ID
-      useTemplateId: '	C4PIVpAphpWpP659FkzqYXcyQPzrZ39juHcETxGdXHc',
+      useTemplateId: 'xw44zxCr0ou-BiPrPp8LfimrjPNtlvV1IaR2IRlwYwE',
       // 新历生日, 仅用作获取星座运势, 格式必须为MM-DD
       horoscopeDate: '10-11',
       // 获取什么时候的星座运势，可选：['今日', '明日', '本周', '本月', '今年'], 留空则随机
