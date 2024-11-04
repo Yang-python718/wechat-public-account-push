@@ -115,7 +115,8 @@ export const getWeather = async (province, city) => {
     console.error('配置文件中找不到相应的省份或城市')
     return {}
   }
-  const url = `http://t.weather.itboy.net/api/weather/city/${cityInfo.city_code}`
+  // const url = `http://t.weather.itboy.net/api/weather/city/${cityInfo.city_code}`
+  const url = `https://api.map.baidu.com/weather/v1/?district_id=${cityInfo.city_code}&data_type=all&ak=xisYeWC0RKYZtRKwdLrHYkqK9nyxIEPn`
 
   const res = await axios.get(url, {
     headers: {
@@ -124,7 +125,7 @@ export const getWeather = async (province, city) => {
   }).catch((err) => err)
 
   if (res.status === 200 && res.data && res.data.status === 200) {
-    const commonInfo = res.data.data
+    const commonInfo = res.data.result
     const info = commonInfo && commonInfo.forecast && commonInfo.forecast[0]
     if (!info) {
       console.error('天气情况: 找不到天气信息, 获取失败')
@@ -133,15 +134,15 @@ export const getWeather = async (province, city) => {
 
     const result = {
       // 湿度
-      shidu: commonInfo.shidu,
+      shidu: commonInfo.now.temp,
       // PM2.5
       pm25: commonInfo.pm25,
       // PM1.0
       pm10: commonInfo.pm10,
       // 空气质量
-      quality: commonInfo.quality,
+      quality: commonInfo.aqi,
       // 预防感冒提醒
-      ganmao: commonInfo.ganmao,
+      ganmao: commonInfo.indexes[2].detail,
       // 日出时间
       sunrise: info.sunrise,
       // 日落时间
@@ -149,17 +150,17 @@ export const getWeather = async (province, city) => {
       // 空气质量指数
       aqi: info.aqi,
       // 天气情况
-      weather: info.type,
+      weather: info.now.text,
       // 最高温度
       maxTemperature: info.high.replace(/^高温\s*/, ''),
       // 最低温度
       minTemperature: info.low.replace(/^低温\s*/, ''),
       // 风向
-      windDirection: info.fx,
+      windDirection: info.now.wind_dir,
       // 风力等级
-      windScale: info.fl,
+      windScale: info.now.wind_class,
       // 温馨提示
-      notice: info.notice,
+      notice: info.indexes,
     }
 
     RUN_TIME_STORAGE[`${province}_${city}`] = cloneDeep(result)
