@@ -125,6 +125,7 @@ export const getWeather = async (province, city) => {
   }).catch((err) => err)
 
   if (res.status === 200 && res.data && res.data.status === 200) {
+    console.log(res)
     const commonInfo = res.result
     const info = commonInfo && commonInfo.forecast && commonInfo.forecast[0]
     if (!info) {
