@@ -125,7 +125,7 @@ export const getWeather = async (province, city) => {
   }).catch((err) => err)
 
   if (res.status === 200 && res.data && res.data.status === 200) {
-    const commonInfo = res.data.result
+    const commonInfo = res.result
     const info = commonInfo && commonInfo.forecast && commonInfo.forecast[0]
     if (!info) {
       console.error('天气情况: 找不到天气信息, 获取失败')
