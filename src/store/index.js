@@ -37,10 +37,10 @@ export const WEATHER_CITY = [
   {
     id: 1,
     pid: 0,
-    city_code: '101010100',
+    city_code: '110100',
     city_name: '北京',
     post_code: '100000',
-    area_code: '010',
+    area_code: '101010100',
     ctime: '2019-07-11 17:30:06',
   },
   {
