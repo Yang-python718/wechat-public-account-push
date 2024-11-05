@@ -66,7 +66,7 @@ SWITCH: {
       id: 'ohVwP60wV2FxuMvDeNYHTZLKXXww',
       // 使用微信测试号：你想对他发送的模板消息的模板ID
       // useTemplateId: 'xw44zxCr0ou-BiPrPp8LfimrjPNtlvV1IaR2IRlwYwE',
-      useTemplateId: 'TWFC1CJm3ixQKw83W3GJ2Cj5PJ4bQTIt9U5O4hF68IU',
+      useTemplateId: 'pmIX26Ny9rHdiEDeI4C3ugAdq7GT4MvsFfxccOxv1ww',
       // 新历生日, 仅用作获取星座运势, 格式必须为MM-DD
       horoscopeDate: '10-11',
       // 获取什么时候的星座运势，可选：['今日', '明日', '本周', '本月', '今年'], 留空则随机
@@ -96,7 +96,7 @@ SWITCH: {
       // 使用微信测试号：扫码关注你的微信测试号后生成的一段字符串，在测试号后台能看到
       id: 'ohVwP6yA-1kg0nUvKYVx-uHCRqdc',
       // 使用微信测试号：你想对他发送的模板消息的模板ID
-      useTemplateId: 'TWFC1CJm3ixQKw83W3GJ2Cj5PJ4bQTIt9U5O4hF68IU',
+      useTemplateId: 'pmIX26Ny9rHdiEDeI4C3ugAdq7GT4MvsFfxccOxv1ww',
       // 新历生日, 仅用作获取星座运势, 格式必须为MM-DD
       horoscopeDate: '07-18',
       // 获取什么时候的星座运势，可选：['今日', '明日', '本周', '本月', '今年'], 留空则随机
@@ -147,11 +147,14 @@ SWITCH: {
       contents: [
         '因为太喜欢你，所以看谁都像是情敌。',
         '申请成为你爱里的永久居民。',
-        '你很傻，你很笨，可我还是很羡慕你，因为你有我',
         '遇见你，就好像捡到了100斤的运气',
         '听老婆的话，会发达！',
         '每天要充满Passion！！！',
-        '不要凶小羊奥'
+        '不要凶小羊奥',
+        '哈哈哈哈哈哈哈哈哈',
+        '爱你到永远',
+        '今日亲亲了没呀',
+        '不要皱眉！',
       ],
     }
     // 你可以不断按格式往下增加
