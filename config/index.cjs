@@ -81,8 +81,11 @@ SWITCH: {
         //   type: '生日', name: '宝宝', year: '1996', date: '10-11',
         // },
         {
-          type: '节日', name: '相识纪念日', year: '2024', date: '01-01',
+          type: '节日', name: '恋爱纪念日', year: '2024', date: '01-01',
         },
+        {
+          type:'节日',name:'领证纪念日',year:'2025',date:'10-25',
+        }
       ],
       // 我们在一起已经有xxxx天了的配置
       customizedDateList: [
@@ -111,8 +114,11 @@ SWITCH: {
         //   type: '生日', name: '宝宝', year: '1996', date: '10-11',
         // },
         {
-          type: '节日', name: '相识纪念日', year: '2024', date: '01-01',
+          type: '节日', name: '恋爱纪念日', year: '2024', date: '01-01',
         },
+        {
+          type:'节日',name:'领证纪念日',year:'2025',date:'10-25',
+        }
       ],
       // 我们在一起已经有xxxx天了的配置
       customizedDateList: [
@@ -155,6 +161,7 @@ SWITCH: {
         '爱你到永远',
         '今日亲亲了没呀',
         '不要皱眉！',
+        '上班就是牛马，下班才是生活'
       ],
     }
     // 你可以不断按格式往下增加
