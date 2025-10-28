@@ -720,7 +720,9 @@ export const getBirthdayMessage = (festivals) => {
   });
   let resMessage = "";
   const wechatTestBirthdayMessage = [];
-
+  console.log(birthdayList)
+debugger
+  
   birthdayList.forEach((item, index) => {
     if (
       !config.FESTIVALS_LIMIT ||
