@@ -189,9 +189,9 @@ export const getWeather = async (province, city) => {
       // 天气情况
       weather: commonInfo.now?.text,
       // 最高温度
-      maxTemperature: `${todayInfo?.high||0}°`,
+      maxTemperature: `${todayInfo?.high || 0}°`,
       // 最低温度
-      minTemperature: `${todayInfo?.low||0}°`,
+      minTemperature: `${todayInfo?.low || 0}°`,
       // 风向
       windDirection: commonInfo.now?.wind_dir,
       // 风力等级
