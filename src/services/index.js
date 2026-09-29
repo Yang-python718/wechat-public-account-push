@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 import { JSDOM } from "jsdom";
 import cloneDeep from "lodash/cloneDeep.js";
 import config from "../../config/exp-config.js";
+import getRuntimeConfig from "../../config/runtime-config.js";
 import TEMPLATE_CONFIG from "../../config/template-config.cjs";
 import { DEFAULT_OUTPUT, TYPE_LIST, RUN_TIME_STORAGE } from "../store/index.js";
 import {
@@ -16,7 +17,25 @@ import {
 } from "../utils/index.js";
 import { selfDayjs, timeZone } from "../utils/set-def-dayjs.js";
 
-axios.defaults.timeout = 10000;
+axios.defaults.timeout = getRuntimeConfig().requestTimeoutMs;
+
+const getErrorSummary = (response) => {
+  if (typeof response === "string") {
+    return response.slice(0, 160) || "未提供错误详情";
+  }
+
+  const data = response?.response?.data || response?.data;
+  const status = response?.response?.status || response?.status;
+  const code = data?.errcode ?? data?.code;
+  const message = data?.errmsg || data?.message || data?.msg || response?.message;
+  const details = [
+    status && `HTTP ${status}`,
+    code !== undefined && `code ${code}`,
+    typeof message === "string" && message.slice(0, 160),
+  ].filter(Boolean);
+
+  return details.join(": ") || "未提供错误详情";
+};
 
 // 使用单空行还是双空行
 const getLB = () => {
@@ -31,31 +50,21 @@ const getLB = () => {
  * @returns accessToken
  */
 export const getAccessToken = async () => {
-  // APP_ID
-  const appId = config.APP_ID || process.env.APP_ID;
-  // APP_SECRET
-  const appSecret = config.APP_SECRET || process.env.APP_SECRET;
+  const { appId: envAppId, appSecret: envAppSecret } = getRuntimeConfig();
+  const appId = config.APP_ID || envAppId;
+  const appSecret = config.APP_SECRET || envAppSecret;
   // accessToken
   let accessToken = null;
 
   // 打印日志
   if (!appId) {
-    console.log(
-      "未填写appId!! 请检查是否actions secret的变量拼写正确，仔细阅读文档!!",
-      appId
-    );
+    console.error("未填写 appId，请检查配置或 Actions secret 名称。");
     return null;
   }
   if (!appSecret) {
-    console.log(
-      "未填写appSecret!! 请检查是否actions secret的变量拼写正确，请仔细阅读文档!!",
-      appId
-    );
+    console.error("未填写 appSecret，请检查配置或 Actions secret 名称。");
     return null;
   }
-
-  console.log("已获取appId", appId);
-  console.log("已获取appSecret", appSecret);
 
   const postUrl = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${appId}&secret=${appSecret}`;
 
@@ -63,18 +72,12 @@ export const getAccessToken = async () => {
     const res = await axios.get(postUrl).catch((err) => err);
     if (res.status === 200 && res.data && res.data.access_token) {
       accessToken = res.data.access_token;
-      console.log("---");
-      console.log("获取 accessToken: 成功", res.data);
-      console.log("---");
+      console.log("获取 accessToken 成功");
     } else {
-      console.log("---");
-      console.error("获取 accessToken: 请求失败", res.data.errmsg || res.data);
-      console.log("---");
-      console.log(`40001: 请检查appId，appSecret 填写是否正确；
-                  如果第一次使用微信测试号请关闭测试号平台后重新扫码登陆测试号平台获取最新的appId，appSecret`);
+      console.error(`获取 accessToken 失败：${getErrorSummary(res)}`);
     }
   } catch (e) {
-    console.error("获取 accessToken: ", e);
+    console.error(`获取 accessToken 异常：${getErrorSummary(e)}`);
   }
 
   return accessToken;
@@ -145,7 +148,8 @@ export const getWeather = async (province, city) => {
     return {};
   }
   // const url = `http://t.weather.itboy.net/api/weather/city/${cityInfo.city_code}`
-  const url = `https://api.map.baidu.com/weather/v1/?district_id=${cityInfo.city_code}&data_type=all&ak=xisYeWC0RKYZtRKwdLrHYkqK9nyxIEPn`;
+  const { baiduWeatherApiKey } = getRuntimeConfig();
+  const url = `https://api.map.baidu.com/weather/v1/?district_id=${cityInfo.city_code}&data_type=all&ak=${baiduWeatherApiKey}`;
 
   const res = await axios
     .get(url, {
@@ -204,60 +208,7 @@ export const getWeather = async (province, city) => {
 
     return result;
   }
-  console.error("天气情况获取失败", res);
-  return {};
-};
-
-/**
- * 金山词霸每日一句
- * @returns
- */
-export const getCIBA = async () => {
-  const url = "http://open.iciba.com/dsapi/";
-  const res = await axios
-    .get(url, {
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36",
-      },
-    })
-    .catch((err) => err);
-
-  if (res.status === 200 && res) {
-    const data = res.data;
-    const keys = [
-      {
-        from: "content",
-        to: "note_en",
-      },
-      {
-        from: "note",
-        to: "note_ch",
-      },
-    ];
-    keys.forEach((obj) => {
-      const value = data[obj.from];
-      const arr = [];
-      for (let j = 0, i = 0; j < value.length; j += 20) {
-        arr.push({
-          name: `wx_${obj.to}_${i}`,
-          value: value.slice(j, j + 20),
-          color: getColor(),
-        });
-        i++;
-      }
-      data[`wx_${obj.to}`] = arr;
-    });
-
-    return {
-      noteEn: data["content"],
-      wxNoteEn: data["wx_note_en"],
-      noteCh: data["note"],
-      wxNoteCh: data["wx_note_ch"],
-    };
-  }
-  console.error("金山词霸每日一句: 发生错误", res);
+  console.error(`天气情况获取失败：${getErrorSummary(res)}`);
   return {};
 };
 
@@ -270,17 +221,49 @@ export const getHolidaytts = async () => {
     return null;
   }
 
-  // const url = "https://wangxinleo.cn/api/wx-push/holiday/getHolidaytts";
-  const url = `http://timor.tech/api/holiday/year/${new Date().getFullYear()}`;
+  const url = `https://api.jiejiariapi.com/v1/holidays/${new Date().getFullYear()}`;
   const res = await axios.get(url).catch((err) => err);
   let data = DEFAULT_OUTPUT.holidaytts;
 
-  if (res.code === 0) {
-    data = res.holiday;
-  } else {
-    console.error("获取下一休息日tts: 发生错误", res);
+  const responseBody = res?.data ?? res;
+  let responseData = responseBody;
+  if (typeof responseBody === "string") {
+    try {
+      responseData = JSON.parse(responseBody);
+    } catch {
+      responseData = null;
+    }
   }
-  console.log(data);
+
+  const holidays = responseData && Object.values(responseData);
+  const hasValidHolidayData = holidays?.length > 0
+    && holidays.every((holiday) => (
+      holiday
+      && typeof holiday === "object"
+      && typeof holiday.date === "string"
+      && typeof holiday.isOffDay === "boolean"
+    ));
+
+  if (hasValidHolidayData) {
+    const today = dayjs().startOf("day");
+    const nextHoliday = holidays
+      .filter((holiday) => holiday.isOffDay === true && holiday.date)
+      .map((holiday) => ({
+        ...holiday,
+        daysUntil: dayjs(holiday.date).startOf("day").diff(today, "day"),
+      }))
+      .filter((holiday) => holiday.daysUntil >= 0)
+      .sort((a, b) => a.daysUntil - b.daysUntil)[0];
+
+    if (nextHoliday) {
+      const date = dayjs(nextHoliday.date);
+      data = `还有${nextHoliday.daysUntil}天就是${date.format("M月D日")}${nextHoliday.name}了`;
+    }
+  } else {
+    console.warn(
+      `下一休息日接口暂不可用（${getErrorSummary(res)}），已使用默认文案。`
+    );
+  }
   const arr = [];
   for (let j = 0, i = 0; j < data.length; j += 20) {
     arr.push({
@@ -339,23 +322,21 @@ export const getOneTalk = async (type) => {
     return data;
   }
 
-  console.error("每日一言: 发生错误", res);
+  console.error(`每日一言发生错误：${getErrorSummary(res)}`);
   return {};
 };
 
 /**
  * 从沙雕APP开放接口中获取数据
- * @param {'chp' | 'pyq' | 'du'} type
+ * @param {'chp'} type
  * @returns {Promise<String>}
  */
 export const getWordsFromApiShadiao = async (type) => {
   const typeNameMap = {
     chp: "土味情话(彩虹屁)",
-    pyq: "朋友圈文案",
-    du: "毒鸡汤",
   };
-  if (!["chp", "pyq", "du"].includes(type)) {
-    console.error("type参数有误，应为chp, pyq, du的其中一个");
+  if (type !== "chp") {
+    console.error("type参数有误，应为chp");
     return "";
   }
   const url = `https://api.shadiao.pro/${type}`;
@@ -367,7 +348,7 @@ export const getWordsFromApiShadiao = async (type) => {
       .catch((err) => err);
     return (res.data && res.data.data && res.data.data.text) || "";
   } catch (e) {
-    console.error(`${typeNameMap[type]}：发生错误`, e);
+    console.error(`${typeNameMap[type]}：发生错误：${getErrorSummary(e)}`);
     return "";
   }
 };
@@ -398,111 +379,6 @@ export const getEarthyLoveWords = async () => {
     earthyLoveWords: data,
     wxEarthyLoveWords: arr,
   };
-};
-
-/**
- * 朋友圈文案
- * @returns {Promise<String>} 朋友圈文案内容
- */
-export const getMomentCopyrighting = async () => {
-  if (config.SWITCH && config.SWITCH.momentCopyrighting === false) {
-    return "";
-  }
-  const data =
-    (await getWordsFromApiShadiao("pyq")) || DEFAULT_OUTPUT.momentCopyrighting;
-
-  const arr = [];
-  for (let j = 0, i = 0; j < data.length; j += 20) {
-    arr.push({
-      name: `wx_moment_copyrighting_${i}`,
-      value: data.slice(j, j + 20),
-      color: getColor(),
-    });
-    i++;
-  }
-
-  return {
-    momentCopyrighting: data,
-    wxMomentCopyrighting: arr,
-  };
-};
-
-/**
- * 毒鸡汤
- * @returns {Promise<String>} 毒鸡汤内容
- */
-export const getPoisonChickenSoup = async () => {
-  if (config.SWITCH && config.SWITCH.poisonChickenSoup === false) {
-    return "";
-  }
-
-  const data =
-    (await getWordsFromApiShadiao("du")) || DEFAULT_OUTPUT.poisonChickenSoup;
-
-  const arr = [];
-  for (let j = 0, i = 0; j < data.length; j += 20) {
-    arr.push({
-      name: `wx_poison_chicken_soup_${i}`,
-      value: data.slice(j, j + 20),
-      color: getColor(),
-    });
-    i++;
-  }
-
-  return {
-    poisonChickenSoup: data,
-    wxPoisonChickenSoup: arr,
-  };
-};
-
-/**
- * 古诗古文
- * @returns {Promise<{}|{dynasty: string, author: string, title: string, content: string}>} 古诗内容 标题 作者 朝代
- */
-export const getPoetry = async () => {
-  if (config.SWITCH && config.SWITCH.poetry === false) {
-    return {};
-  }
-
-  const url = "https://v2.jinrishici.com/sentence";
-  try {
-    const res = await axios
-      .get(url, {
-        headers: {
-          "X-User-Token": "FW8KNlfULPtZ9Ci6aNy8aTfPJPwI+/Ln",
-        },
-        responseType: "json",
-      })
-      .catch((err) => err);
-    const { status, data, warning } = res.data || {};
-    if (status !== "success") {
-      console.error("古诗古文：发生错误", warning || "");
-      return {};
-    }
-    const { content = DEFAULT_OUTPUT.poetryContent, origin } = data || {};
-
-    const wxContent = [];
-    for (let j = 0, i = 0; j < content.length; j += 20) {
-      wxContent.push({
-        name: `wx_poetry_content_${i}`,
-        value: content.slice(j, j + 20),
-        color: getColor(),
-      });
-      i++;
-    }
-
-    const { title = "", author = "", dynasty = "" } = origin || {};
-    return {
-      content,
-      wxContent,
-      title,
-      author,
-      dynasty,
-    };
-  } catch (e) {
-    console.error("古诗古文：发生错误", e);
-    return {};
-  }
 };
 
 /**
@@ -602,89 +478,9 @@ export const getConstellationFortune = async (date, dateType) => {
 
     return res;
   } catch (e) {
-    console.error("星座运势：发生错误", e);
+    console.error(`星座运势发生错误：${getErrorSummary(e)}`);
     return res;
   }
-};
-
-/**
- * 获取课程表
- * @param courseSchedule {Array<Array<String>>|{benchmark: {date: string, isOdd: boolean}, courses: {odd: Array<Array<string>>, even:Array<Array<string>>}}}
- * @returns
- */
-export const getCourseSchedule = (courseSchedule) => {
-  if (config.SWITCH && config.SWITCH.courseSchedule === false) {
-    return "";
-  }
-  if (!courseSchedule) {
-    return "";
-  }
-  const week = (selfDayjs().day() + 6) % 7;
-  // 如果课程表是一个数组，认为只有单周的课表
-  if (Array.isArray(courseSchedule)) {
-    return (courseSchedule[week] || []).join(getLB());
-  }
-  // 如果是一个对象，则根据基准日期判断单双周
-  const benchmarkDate = selfDayjs(courseSchedule.benchmark.date);
-  const diff = selfDayjs().diff(
-    benchmarkDate
-      .set("day", 0)
-      .set("hour", 0)
-      .set("minute", 0)
-      .set("second", 0)
-      .set("millisecond", 0),
-    "millisecond"
-  );
-  const isSameKind = Math.floor(diff / 7 / 86400000) % 2 === 0;
-  const kind =
-    (isSameKind && courseSchedule.benchmark.isOdd) ||
-    (!isSameKind && !courseSchedule.benchmark.isOdd)
-      ? "odd"
-      : "even";
-
-  const temp =
-    (courseSchedule.courses &&
-      courseSchedule.courses[kind] &&
-      courseSchedule.courses[kind][week]) ||
-    [];
-  const schedule = temp.join(getLB());
-  const wechatTestCourseSchedule = [];
-  temp.forEach((item, index) => {
-    wechatTestCourseSchedule.push({
-      name: toLowerLine(`wxCourseSchedule_${index}`),
-      value: item,
-      color: getColor(),
-    });
-  });
-
-  return { schedule, wechatTestCourseSchedule };
-};
-
-/**
- * 获取bing每日壁纸数据
- */
-export const getBing = async () => {
-  const url = "https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1";
-
-  const res = await axios
-    .get(url, {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
-    .catch((err) => err);
-
-  if (res.data && res.data.images) {
-    const imgUrl = `https://cn.bing.com/${res.data.images[0].url}`;
-    const imgTitle = res.data.images[0].title;
-    const imgContent = res.data.images[0].copyright.replace(/\(.*?\)/, "");
-    return {
-      imgUrl,
-      imgTitle,
-      imgContent,
-    };
-  }
-  return {};
 };
 
 /**
@@ -720,9 +516,7 @@ export const getBirthdayMessage = (festivals) => {
   });
   let resMessage = "";
   const wechatTestBirthdayMessage = [];
-  console.log(birthdayList)
-debugger
-  
+
   birthdayList.forEach((item, index) => {
     if (
       !config.FESTIVALS_LIMIT ||
@@ -808,29 +602,45 @@ export const getDateDiffList = (customizedDateList) => {
  * 自定义插槽信息
  * @returns
  */
-export const getSlotList = () => {
+export const getSlotList = async () => {
   if (Object.prototype.toString.call(config.SLOT_LIST) !== "[object Array]") {
     return [];
   }
-  const slotList = config.SLOT_LIST;
+  return Promise.all(
+    config.SLOT_LIST.map(async (item) => {
+      let contents = Array.isArray(item.contents)
+        ? [...item.contents]
+        : typeof item.contents === "string"
+          ? [item.contents]
+          : [];
 
-  slotList.forEach((item) => {
-    if (
-      Object.prototype.toString.call(item.contents) === "[object Array]" &&
-      item.contents.length > 0
-    ) {
-      item.checkout =
-        item.contents[Math.floor(Math.random() * item.contents.length + 1) - 1];
-    } else if (
-      Object.prototype.toString.call(item.contents) === "[object String]"
-    ) {
-      item.checkout = item.contents;
-    } else {
-      item.checkout = "";
-    }
-  });
+      if (item.contentsUrl) {
+        try {
+          const { data } = await axios.get(item.contentsUrl);
+          if (typeof data === "string" && data.trim()) {
+            contents.push(data.trim());
+          } else {
+            console.error(`自定义内容接口返回格式无效：${item.contentsUrl}`);
+          }
+        } catch (error) {
+          console.error(
+            `读取自定义内容接口失败：${item.contentsUrl}：${getErrorSummary(error)}`
+          );
+        }
+      }
 
-  return slotList;
+      const checkout = contents.length
+        ? contents[Math.floor(Math.random() * contents.length)]
+        : "";
+      return {
+        ...item,
+        contents: Array.isArray(item.contents) || item.contentsUrl
+          ? contents
+          : item.contents,
+        checkout,
+      };
+    })
+  );
 };
 
 /**
@@ -843,7 +653,6 @@ export const buildTianApi = async (apiType, params = null) => {
   const typeMap = {
     zaoan: "morningGreeting",
     wanan: "eveningGreeting",
-    networkhot: "networkHot",
     tianqi: "weather",
   };
   if (!(config.TIAN_API && config.TIAN_API[typeMap[apiType]])) {
@@ -883,7 +692,7 @@ export const buildTianApi = async (apiType, params = null) => {
     return result;
   }
 
-  console.error(`获取天行API接口 ${apiType} 发生错误: `, res.data || res);
+  console.error(`获取天行 API 接口 ${apiType} 发生错误：${getErrorSummary(res)}`);
   return [];
 };
 
@@ -910,24 +719,6 @@ export const getTianApiWeather = async (user) =>
   buildTianApi("tianqi", { city: user.city || config.CITY });
 
 /**
- * 天行-每日热搜
- * @returns {Promise<[]>|Promise<never>|Promise<AxiosResponse<any>>}
- * @param type
- */
-export const getTianApiNetworkHot = async (type = "default") => {
-  let result = "";
-  const res = await buildTianApi("networkhot");
-  res.forEach((item, index) => {
-    if (item.digest) {
-      result += `${index + 1}、 ${
-        type === "default" ? item.digest : item.title
-      } ${getLB()}`;
-    }
-  });
-  return result;
-};
-
-/**
  * 获取全部处理好的用户数据
  * @returns
  */
@@ -942,61 +733,57 @@ export const getAggregatedData = async () => {
     "星期五",
     "星期六",
   ];
-  // 获取金山词霸每日一句
-  const {
-    noteEn = DEFAULT_OUTPUT.noteEn,
-    wxNoteEn = "",
-    noteCh = DEFAULT_OUTPUT.noteCh,
-    wxNoteCh = "",
-  } = await getCIBA();
-  // 获取下一休息日
-  const { holidaytts, wxHolidaytts } = await getHolidaytts();
-  // 获取每日一言
+  if (Object.prototype.toString.call(config.USERS) !== "[object Array]") {
+    console.error("配置文件中找不到USERS数组");
+    throw new Error("配置文件中找不到USERS数组");
+  }
+
+  const users = config.USERS;
+  const [
+    holidayData,
+    oneTalkData,
+    earthyLoveWordsData,
+    morningGreeting,
+    eveningGreeting,
+    slotList,
+  ] = await Promise.all([
+    getHolidaytts(),
+    getOneTalk(config.LITERARY_PREFERENCE),
+    getEarthyLoveWords(),
+    getTianApiMorningGreeting(),
+    getTianApiEveningGreeting(),
+    getSlotList(),
+  ]);
+
+  const { holidaytts, wxHolidaytts } = holidayData;
   const {
     hitokoto: oneTalk = DEFAULT_OUTPUT.oneTalk,
     wx_one_talk: wxOneTalk = "",
     from: talkFrom = DEFAULT_OUTPUT.talkFrom,
-  } = await getOneTalk(config.LITERARY_PREFERENCE);
-  // 获取土味情话
-  const { earthyLoveWords, wxEarthyLoveWords } = await getEarthyLoveWords();
-  // 获取朋友圈文案
-  const { momentCopyrighting, wxMomentCopyrighting } =
-    await getMomentCopyrighting();
-  // 获取毒鸡汤
-  const { poisonChickenSoup, wxPoisonChickenSoup } =
-    await getPoisonChickenSoup();
-  // 获取古诗古文 poetry
-  const {
-    dynasty: poetryDynasty = DEFAULT_OUTPUT.poetryDynasty,
-    author: poetryAuthor = DEFAULT_OUTPUT.poetryAuthor,
-    title: poetryTitle = DEFAULT_OUTPUT.poetryTitle,
-    content: poetryContent,
-    wxContent: wxPoetryContent,
-  } = await getPoetry();
-  // 获取插槽中的数据
-  const slotParams = getSlotList().map((item) => ({
+  } = oneTalkData;
+  const { earthyLoveWords, wxEarthyLoveWords } = earthyLoveWordsData;
+
+  const slotParams = slotList.map((item) => ({
     name: item.keyword,
     value: item.checkout,
     color: getColor(),
   }));
 
-  if (Object.prototype.toString.call(config.USERS) !== "[object Array]") {
-    console.error("配置文件中找不到USERS数组");
-    throw new Error("配置文件中找不到USERS数组");
-  }
-  const users = config.USERS;
   for (const user of users) {
-    // 获取每日天气
     const useProvince = user.province || config.PROVINCE;
     const useCity = user.city || config.CITY;
-    const weatherInfo = await getWeather(useProvince, useCity);
+    const [weatherInfo, constellationFortune, tianApiWeatherData] =
+      await Promise.all([
+        getWeather(useProvince, useCity),
+        getConstellationFortune(user.horoscopeDate, user.horoscopeDateType),
+        getTianApiWeather(user),
+      ]);
     const weatherMessage = Object.keys(weatherInfo).map((item) => ({
       name: toLowerLine(item),
       value: weatherInfo[item] || "获取失败",
       color: getColor(),
     }));
 
-    // 统计日列表计算日期差
     const dateDiffParams = getDateDiffList(user.customizedDateList).map(
       (item) => ({
         name: item.keyword,
@@ -1005,37 +792,23 @@ export const getAggregatedData = async () => {
       })
     );
 
-    // 获取生日/生日信息
     const { resMessage: birthdayMessage, wechatTestBirthdayMessage } =
       getBirthdayMessage(user.festivals);
 
-    // 获取星座运势
-    const constellationFortune = await getConstellationFortune(
-      user.horoscopeDate,
-      user.horoscopeDateType
-    );
-
-    // 获取课表信息
-    const { schedule: courseSchedule, wechatTestCourseSchedule } =
-      getCourseSchedule(user.courseSchedule || config.courseSchedule) ||
-      DEFAULT_OUTPUT.courseSchedule;
-
-    // 天行-早晚安
     const tianApiGreeting = [
       {
         name: toLowerLine("tianApiMorningGreeting"),
-        value: await getTianApiMorningGreeting(),
+        value: morningGreeting,
         color: getColor(),
       },
       {
         name: toLowerLine("tianApiEveningGreeting"),
-        value: await getTianApiEveningGreeting(),
+        value: eveningGreeting,
         color: getColor(),
       },
     ].filter((it) => it.value);
 
-    // 天行-天气
-    const tianApiWeather = ((await getTianApiWeather(user)) || [])
+    const tianApiWeather = (tianApiWeatherData || [])
       .map((it, index) =>
         Object.keys(it)
           .filter(
@@ -1050,16 +823,6 @@ export const getAggregatedData = async () => {
       )
       .flat();
 
-    // 天行-热榜
-    const tianApiNetworkHot = [
-      {
-        name: toLowerLine("tianApiNetworkHot"),
-        value: await getTianApiNetworkHot(
-          config.TIAN_API && config.TIAN_API.networkHotType
-        ),
-        color: getColor(),
-      },
-    ];
     // 集成所需信息
     const wxTemplateParams = [
       { name: toLowerLine("toName"), value: user.name, color: getColor() },
@@ -1085,49 +848,12 @@ export const getAggregatedData = async () => {
         value: birthdayMessage,
         color: getColor(),
       },
-      { name: toLowerLine("noteEn"), value: noteEn, color: getColor() },
-      { name: toLowerLine("noteCh"), value: noteCh, color: getColor() },
       { name: toLowerLine("holidaytts"), value: holidaytts, color: getColor() },
       { name: toLowerLine("oneTalk"), value: oneTalk, color: getColor() },
       { name: toLowerLine("talkFrom"), value: talkFrom, color: getColor() },
       {
         name: toLowerLine("earthyLoveWords"),
         value: earthyLoveWords,
-        color: getColor(),
-      },
-      {
-        name: toLowerLine("momentCopyrighting"),
-        value: momentCopyrighting,
-        color: getColor(),
-      },
-      {
-        name: toLowerLine("poisonChickenSoup"),
-        value: poisonChickenSoup,
-        color: getColor(),
-      },
-      {
-        name: toLowerLine("poetryContent"),
-        value: poetryContent,
-        color: getColor(),
-      },
-      {
-        name: toLowerLine("poetryAuthor"),
-        value: poetryAuthor,
-        color: getColor(),
-      },
-      {
-        name: toLowerLine("poetryDynasty"),
-        value: poetryDynasty,
-        color: getColor(),
-      },
-      {
-        name: toLowerLine("poetryTitle"),
-        value: poetryTitle,
-        color: getColor(),
-      },
-      {
-        name: toLowerLine("courseSchedule"),
-        value: courseSchedule,
         color: getColor(),
       },
     ]
@@ -1137,16 +863,9 @@ export const getAggregatedData = async () => {
       .concat(slotParams)
       .concat(tianApiGreeting)
       .concat(tianApiWeather)
-      .concat(tianApiNetworkHot)
       .concat(wechatTestBirthdayMessage)
-      .concat(wechatTestCourseSchedule)
-      .concat(wxNoteEn)
-      .concat(wxNoteCh)
       .concat(wxOneTalk)
       .concat(wxEarthyLoveWords)
-      .concat(wxMomentCopyrighting)
-      .concat(wxPoisonChickenSoup)
-      .concat(wxPoetryContent)
       .concat(wxHolidaytts);
 
     user.wxTemplateParams = wxTemplateParams;
@@ -1170,9 +889,7 @@ export const model2Data = (
   turnToOA = false
 ) => {
   if (!templateId || !wxTemplateData) {
-    console.log("templateId:", templateId);
-    console.log("wxTemplateData:", wxTemplateData);
-    console.log("发生错误，templateId 或 wxTemplateData 不能为 null");
+    console.error("发生错误：templateId 或 wxTemplateData 不能为空。");
     return null;
   }
   let targetValue = null;
@@ -1310,7 +1027,7 @@ const sendMessageByPushDeer = async (user, templateId, wxTemplateData) => {
       success: true,
     };
   }
-  console.error(`${user.name}: 推送消息失败`, res);
+  console.error(`${user.name}: 推送消息失败：${getErrorSummary(res)}`);
   return {
     name: user.name,
     success: false,
@@ -1360,7 +1077,7 @@ const sendMessageByPushPlus = async (user, templateId, wxTemplateData) => {
       success: true,
     };
   }
-  console.error(`${user.name}: 推送消息失败`, res);
+  console.error(`${user.name}: 推送消息失败：${getErrorSummary(res)}`);
   return {
     name: user.name,
     success: false,
@@ -1400,7 +1117,7 @@ const sendMessageByServerChan = async (user, templateId, wxTemplateData) => {
       success: true,
     };
   }
-  console.error(`${user.name}: 推送消息失败`, res);
+  console.error(`${user.name}: 推送消息失败：${getErrorSummary(res)}`);
   return {
     name: user.name,
     success: false,
@@ -1469,7 +1186,7 @@ const sendMessageByWeChatTest = async (user, templateId, wxTemplateData) => {
       `${user.name}: 推送消息失败! 模板id填写不正确！应该填模板id！要么就是填错了！请检查配置文件！`
     );
   } else {
-    console.error(`${user.name}: 推送消息失败`, res.data);
+    console.error(`${user.name}: 推送消息失败：${getErrorSummary(res)}`);
   }
 
   return {
@@ -1530,7 +1247,6 @@ export const sendMessageReply = async (
   params = null,
   usePassage = null
 ) => {
-  const resList = [];
   const needPostNum = users.length;
   let successPostNum = 0;
   let failPostNum = 0;
@@ -1553,29 +1269,26 @@ export const sendMessageReply = async (
       );
       await sleep(config.SLEEP_TIME || 65000);
     }
-    resList.push(
-      await sendMessage(
-        templateId || user.useTemplateId,
-        user,
-        params || user.wxTemplateParams,
-        usePassage
-      )
+    const result = await sendMessage(
+      templateId || user.useTemplateId,
+      user,
+      params || user.wxTemplateParams,
+      usePassage
     );
     if (RUN_TIME_STORAGE.pushNum) {
       RUN_TIME_STORAGE.pushNum += 1;
     } else {
       RUN_TIME_STORAGE.pushNum = 1;
     }
-  }
-  resList.forEach((item) => {
-    if (item.success) {
-      successPostNum++;
-      successPostIds.push(item.name);
+
+    if (result.success) {
+      successPostNum += 1;
+      successPostIds.push(result.name);
     } else {
-      failPostNum++;
-      failPostIds.push(item.name);
+      failPostNum += 1;
+      failPostIds.push(result.name);
     }
-  });
+  }
 
   return {
     needPostNum,

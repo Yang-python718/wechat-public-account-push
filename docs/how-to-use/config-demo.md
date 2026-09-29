@@ -44,25 +44,12 @@ const USER_CONFIG = {
     // 下一休息日综合提醒, 填 false 则不使用，按需关闭不使用的功能可以提高运行速度
     holidaytts: true,
 
-    /** 每日N句 */
-    // 金山每日一句, 填 false 则不使用，按需关闭不使用的功能可以提高运行速度
-    CIBA: true,
-    
     // 每日一言, 填 false 则不使用，按需关闭不使用的功能可以提高运行速度
     oneTalk: true,
     
     // 土味情话(彩虹屁), 填 false 则不使用，按需关闭不使用的功能可以提高运行速度
     earthyLoveWords: true,
     
-    // 朋友圈文案, 填 false 则不使用，按需关闭不使用的功能可以提高运行速度
-    momentCopyrighting: true,
-    
-    // 毒鸡汤, 填 false 则不使用，按需关闭不使用的功能可以提高运行速度
-    poisonChickenSoup: true,
-    
-    // 古诗古文, 填 false 则不使用，按需关闭不使用的功能可以提高运行速度
-    poetry: true,
-
     /** 星座运势 */
     // 填 false 则不使用，按需关闭不使用的功能可以提高运行速度
     horoscope: true,
@@ -71,9 +58,6 @@ const USER_CONFIG = {
     // 填 false 则不使用，按需关闭不使用的功能可以提高运行速度
     birthdayMessage: true,
   
-    /** 学生课表 */
-    // 填 false 则不使用，按需关闭不使用的功能可以提高运行速度
-    courseSchedule: true,
   },
   
   TIAN_API: {
@@ -90,11 +74,6 @@ const USER_CONFIG = {
     // 天行天气（展示未来N天，最多7天）, 填 0 则不使用，按需关闭不使用的功能可以提高运行速度
     weather: 3,
   
-    // 全网热搜榜（展示N条，最多30条）, 填 0 则不使用，按需关闭不使用的功能可以提高运行速度
-    networkHot: 3,
-  
-    // 全网热搜榜展示类型，默认展示概要信息: ['title': 仅展示标题, 'default': 展示概要信息]
-    networkHotType: 'default',
   },
   
   /** 是否给文字设置多彩颜色, 和emoji不兼容 */
@@ -156,71 +135,6 @@ const USER_CONFIG = {
         // 退伍日
         { keyword: 'ex_day', date: '2022-09-10' }
       ],
-      // 课程表相关配置
-      // 如果courseSchedule不存在或者为空（null）则认为没有课程
-      // 如果courseSchedule是一个数组，则认为不区分单双周，直接填写星期几对应的课表数据即可
-      // 如果courseSchedule是一个对象（如下面所示）
-      courseSchedule: {
-        // 单双周的基准
-        benchmark: {
-          // 这里设置一个日期，用来作为判断课表是否单双周的依据
-          date: '2022-09-23',
-          // 该日期是否为单周
-          isOdd: true
-        },
-        // 课表
-        courses: {
-          // 单周课表
-          // 从星期一到星期日（星期六和星期日的课表数组可不填写）
-          odd: [
-            // 例子，周一的课表
-            [
-              '08:00-09:35 高等数学',
-              '09:50-11:25 高等物理'
-            ],
-            // 周二
-            [
-              '08:00-09:35 高等数学',
-              '09:50-11:25 高等物理'
-            ],
-            // 周三
-            [
-              '08:00-09:35 高等数学',
-              '09:50-11:25 高等物理'
-            ],
-            // 周四
-            [
-              '08:00-09:35 高等数学',
-              '09:50-11:25 高等物理'
-            ],
-            // 周五
-            [
-              '08:00-09:35 高等数学',
-              '09:50-11:25 高等物理'
-            ],
-            // 周六
-            [
-              '08:00-09:35 高等数学',
-              '09:50-11:25 高等物理'
-            ],
-            // 周日
-            [
-              '08:00-09:35 高等数学',
-              '09:50-11:25 高等物理'
-            ]
-          ],
-          // 双周课表
-          even: [
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            []
-          ]
-        }
-      },
     },
     {
       name: '老婆1',
@@ -232,8 +146,7 @@ const USER_CONFIG = {
       horoscopeDateType: '',
       openUrl: 'https://wangxinleo.cn',
       festivals: [],
-      customizedDateList: [],
-      courseSchedule: null
+      customizedDateList: []
     },
     {
       name: '老婆2',
@@ -245,8 +158,7 @@ const USER_CONFIG = {
       horoscopeDateType: '',
       openUrl: 'https://wangxinleo.cn',
       festivals: [],
-      customizedDateList: [],
-      courseSchedule: null
+      customizedDateList: []
     },
     {
       name: '老婆3',
@@ -258,8 +170,7 @@ const USER_CONFIG = {
       horoscopeDateType: '',
       openUrl: 'https://wangxinleo.cn',
       festivals: [],
-      customizedDateList: [],
-      courseSchedule: null
+      customizedDateList: []
     }
     // 你可以不断按格式往下增加
     // ...
@@ -383,6 +294,8 @@ const USER_CONFIG = {
     // 这样配置的话，就会每次随机选一句话发送
     {
       keyword: 'lover_prattle',
+      // 可选：从接口读取一条内容，追加到contents后参与随机选择
+      contentsUrl: 'https://api.zxki.cn/api/twqh',
       contents: [
         '因为太喜欢你，所以看谁都像是情敌。',
         '申请成为你爱里的永久居民。',

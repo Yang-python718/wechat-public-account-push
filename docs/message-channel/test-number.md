@@ -45,8 +45,6 @@
 
 {{one_talk.DATA}} -- {{talk_from.DATA}}
 
-{{note_en.DATA}} 
-{{note_ch.DATA}}
 ```
 
 模板标题: `推送完成提醒`

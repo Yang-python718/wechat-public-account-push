@@ -1,5 +1,6 @@
 import axios from 'axios'
 import dayjs from 'dayjs'
+import { jest } from '@jest/globals'
 import MockDate from 'mockdate'
 import config from '../config/exp-config.js'
 import TEMPLATE_CONFIG from '../config/template-config.cjs'
@@ -8,26 +9,19 @@ import { RUN_TIME_STORAGE } from '../src/store/index.js'
 import {
   getWeather,
   getAccessToken,
-  getCIBA,
   getOneTalk,
   getEarthyLoveWords,
-  getPoisonChickenSoup,
   getWordsFromApiShadiao,
-  getMomentCopyrighting,
   getDateDiffList,
   getSlotList,
   getBirthdayMessage,
   sendMessage,
   sendMessageReply,
-  getPoetry,
   getConstellationFortune,
   getHolidaytts,
-  getCourseSchedule,
   getWeatherIcon,
-  getBing,
   buildTianApi,
   getTianApiWeather,
-  getTianApiNetworkHot,
   getTianApiMorningGreeting,
   getTianApiEveningGreeting,
   model2Data,
@@ -419,25 +413,6 @@ describe('services', () => {
     }
     expect(await getAccessToken()).toBeNull()
   })
-  test('getCIBA', async () => {
-    axios.get = async () => {
-      throw new Error()
-    }
-    expect(await getCIBA()).toEqual({})
-    axios.get = async () => ({
-      status: 199,
-    })
-    expect(await getCIBA()).toEqual({})
-    axios.get = async () => ({
-      status: 200,
-    })
-    expect(await getCIBA()).toBeUndefined()
-    axios.get = async () => ({
-      status: 200,
-      data: 'test',
-    })
-    expect(await getCIBA()).toEqual('test')
-  })
   test('getOneTalk', async () => {
     config.SWITCH = {}
     expect(await getOneTalk('动画')).toEqual('test')
@@ -457,28 +432,12 @@ describe('services', () => {
   })
   test('getWordsFromApiShadiao', async () => {
     config.SWITCH.earthyLoveWords = true
-    config.SWITCH.momentCopyrighting = true
-    config.SWITCH.poisonChickenSoup = true
     expect(await getWordsFromApiShadiao('other')).toEqual('')
     axios.get = async () => {
       throw new Error()
     }
     expect(await getWordsFromApiShadiao('chp')).toEqual('')
-    axios.get = async () => ({
-      data: null,
-    })
-    expect(await getWordsFromApiShadiao('pyq')).toEqual('')
-    axios.get = async () => null
-    expect(await getWordsFromApiShadiao('pyq')).toEqual('')
-
-    axios.get = async () => ({
-      data: {
-        data: {
-          text: 'test',
-        },
-      },
-    })
-    expect(await getWordsFromApiShadiao('du')).toEqual('test')
+    expect(await getWordsFromApiShadiao('du')).toEqual('')
     axios.get = async () => ({
       data: {
         data: {
@@ -492,32 +451,6 @@ describe('services', () => {
     expect(await getEarthyLoveWords()).toEqual('')
     config.SWITCH.earthyLoveWords = true
     expect(await getEarthyLoveWords()).toEqual('彩虹屁')
-    axios.get = async () => ({
-      data: {
-        data: {
-          text: '朋友圈文案',
-        },
-      },
-    })
-    config.SWITCH.momentCopyrighting = false
-    expect(await getMomentCopyrighting()).toEqual('')
-    config.SWITCH = {}
-    expect(await getMomentCopyrighting()).toEqual('朋友圈文案')
-    config.SWITCH.momentCopyrighting = true
-    expect(await getMomentCopyrighting()).toEqual('朋友圈文案')
-    axios.get = async () => ({
-      data: {
-        data: {
-          text: '毒鸡汤',
-        },
-      },
-    })
-    config.SWITCH = {}
-    expect(await getPoisonChickenSoup()).toEqual('毒鸡汤')
-    config.SWITCH.poisonChickenSoup = false
-    expect(await getPoisonChickenSoup()).toEqual('')
-    config.SWITCH.poisonChickenSoup = true
-    expect(await getPoisonChickenSoup()).toEqual('毒鸡汤')
   })
   test('getBirthdayMessage', () => {
     config.SWITCH = {}
@@ -672,9 +605,9 @@ describe('services', () => {
     config.CUSTOMIZED_DATE_LIST = null
     expect(getDateDiffList(null)).toEqual([])
   })
-  test('getSlotList', () => {
+  test('getSlotList', async () => {
     config.SLOT_LIST = null
-    expect(getSlotList()).toEqual([])
+    await expect(getSlotList()).resolves.toEqual([])
     config.SLOT_LIST = [
       // 这样配置的话，就会每次发送这句话
       { keyword: 'encourage_oneself', contents: '你主要的问题在于读书太少而想得太多' },
@@ -694,7 +627,7 @@ describe('services', () => {
       },
     ]
     Math.random = () => 0
-    expect(getSlotList()).toEqual([
+    await expect(getSlotList()).resolves.toEqual([
       {
         keyword: 'encourage_oneself',
         contents: '你主要的问题在于读书太少而想得太多',
@@ -716,6 +649,40 @@ describe('services', () => {
         checkout: '',
       },
     ])
+  })
+  test('getSlotList appends remote contents', async () => {
+    config.SLOT_LIST = [{
+      keyword: 'lover_prattle',
+      contentsUrl: 'https://api.zxki.cn/api/twqh',
+      contents: ['本地内容'],
+    }]
+    axios.get = async () => ({ data: '接口内容' })
+    Math.random = () => 0.99
+
+    await expect(getSlotList()).resolves.toEqual([{
+      keyword: 'lover_prattle',
+      contentsUrl: 'https://api.zxki.cn/api/twqh',
+      contents: ['本地内容', '接口内容'],
+      checkout: '接口内容',
+    }])
+  })
+  test('getSlotList falls back to configured contents when remote request fails', async () => {
+    config.SLOT_LIST = [{
+      keyword: 'lover_prattle',
+      contentsUrl: 'https://api.zxki.cn/api/twqh',
+      contents: ['本地内容'],
+    }]
+    axios.get = async () => {
+      throw new Error('接口超时')
+    }
+    Math.random = () => 0
+
+    await expect(getSlotList()).resolves.toEqual([{
+      keyword: 'lover_prattle',
+      contentsUrl: 'https://api.zxki.cn/api/twqh',
+      contents: ['本地内容'],
+      checkout: '本地内容',
+    }])
   })
   test('sendMessage', async () => {
     axios.post = async () => {
@@ -976,10 +943,10 @@ describe('services', () => {
       今天是我们相识的第{{love_day.DATA}}天
       {{birthday_message.DATA}}
       ---
-      {{moment_copyrighting.DATA}}
+      {{earthy_love_words.DATA}}
       
       
-      {{poetry_title.DATA}} {{poetry_content.DATA}}
+      {{one_talk.DATA}}
     `,
     })
     expect(await sendMessage('0001', { id: '123', name: 'me' }, [{
@@ -1015,75 +982,28 @@ describe('services', () => {
       success: true,
     })
   })
-  test('getPoetry', async () => {
-    config.SWITCH = {}
-    expect(await getPoetry()).toEqual({})
-    config.SWITCH.poetry = true
-    axios.get = async () => {
-      throw new Error()
-    }
-    expect(await getPoetry()).toEqual({})
-    axios.get = async () => ({
-      data: {
-        status: 'failed',
-      },
-    })
-    expect(await getPoetry()).toEqual({})
-    axios.get = async () => ({})
-    expect(await getPoetry()).toEqual({})
-    axios.get = async () => null
-    expect(await getPoetry()).toEqual({})
-    axios.get = async () => ({
-      data: {
-        status: 'success',
-      },
-    })
-    expect(await getPoetry()).toEqual({
-      author: '',
-      content: '',
-      dynasty: '',
-      title: '',
-    })
-    axios.get = async () => ({
-      data: {
-        status: 'success',
-        data: {
-          content: '床前明月光',
-          origin: {
-            author: '李白',
-            dynasty: '唐',
-            title: '静夜思',
-          },
-        },
-      },
-    })
-    expect(await getPoetry()).toEqual({
-      content: '床前明月光',
-      author: '李白',
-      dynasty: '唐',
-      title: '静夜思',
-    })
-    config.SWITCH = {
-      poetry: false,
-    }
-    expect(await getPoetry()).toEqual({})
-  })
   test('selfDayjs', () => {
     dayjs.tz.guess = () => 'UTC'
     expect(selfDayjs('2022-09-09 12:00:00').hour()).toEqual(4)
   })
   test('getConstellationFortune', async () => {
+    Object.keys(RUN_TIME_STORAGE).forEach((key) => {
+      RUN_TIME_STORAGE[key] = null
+    })
+    jest.spyOn(Math, 'random').mockReturnValue(0)
+    axios.get = async () => {
+      throw new Error()
+    }
     config.SWITCH = {}
-    expect(getConstellationFortune()).resolves.toEqual([])
+    await expect(getConstellationFortune()).resolves.toEqual([])
     config.SWITCH.horoscope = true
-    expect(getConstellationFortune()).resolves.toEqual([])
-    expect(getConstellationFortune('09-02')).resolves.toEqual([])
-    expect(getConstellationFortune('09-02', '昨日')).resolves.toEqual([])
+    await expect(getConstellationFortune()).resolves.toEqual([])
+    await expect(getConstellationFortune('09-02', '昨日')).resolves.toEqual([])
     axios.get = async () => {
       throw new Error()
     }
     config.IS_SHOW_COLOR = true
-    expect(getConstellationFortune('09-02', '今日')).resolves.toEqual([{
+    await expect(getConstellationFortune('09-02', '今日')).resolves.toEqual([{
       color: '#000000',
       value: '今日综合运势: 福星高照! 去争取自己想要的一切吧!',
       name: 'comprehensive_horoscope',
@@ -1130,7 +1050,8 @@ describe('services', () => {
                 </html>
                     `,
     })
-    expect(getConstellationFortune('09-02', '今日')).resolves.toEqual([{
+    RUN_TIME_STORAGE.virgo_0 = null
+    await expect(getConstellationFortune('09-02', '今日')).resolves.toEqual([{
       color: '#000000',
       value: '今日综合运势: 福星高照! 去争取自己想要的一切吧!',
       name: 'comprehensive_horoscope',
@@ -1142,186 +1063,78 @@ describe('services', () => {
     config.SWITCH = {
       horoscope: false,
     }
-    expect(getConstellationFortune('09-02', '今日')).resolves.toEqual([])
+    await expect(getConstellationFortune('09-02', '今日')).resolves.toEqual([])
+    jest.restoreAllMocks()
   })
   test('getHolidaytts', async () => {
-    config.SWITCH = {}
+    config.SWITCH = { holidaytts: false }
     expect(await getHolidaytts()).toEqual(null)
     config.SWITCH.holidaytts = true
     axios.get = async () => {
       throw new Error()
     }
-    expect(await getHolidaytts()).toEqual(null)
+    const fallback = await getHolidaytts()
+    expect(fallback.holidaytts).toBe('嘿嘿，今天不告诉你~')
+
     axios.get = async () => ({
-      status: 200,
-      data: {
-        code: 0,
-        tts: 'xxx',
-      },
+      data: '<!DOCTYPE html><title>Forbidden</title>',
     })
-    expect(await getHolidaytts()).toEqual('xxx')
-    axios.get = async () => ({
-      status: 200,
-      data: {
-        code: 1,
-        tts: 'xxx',
-      },
-    })
-    expect(await getHolidaytts()).toEqual(null)
-    config.SWITCH = {
-      holidaytts: false,
-    }
+    expect((await getHolidaytts()).holidaytts).toBe('嘿嘿，今天不告诉你~')
+    config.SWITCH.holidaytts = false
     expect(await getHolidaytts()).toEqual(null)
   })
-  test('getCourseSchedule', () => {
-    MockDate.set('2022-09-24 08:00:00')
-    config.SWITCH.courseSchedule = false
-    expect(getCourseSchedule([])).toEqual('')
-    config.SWITCH.courseSchedule = true
-    expect(getCourseSchedule(null)).toEqual('')
-    expect(getCourseSchedule([
-      [],
-      [],
-      [],
-      [],
-      [],
-      [
-        '08-00:09:35 高等数学',
-        '09:50-11:35 高等物理',
-      ],
-      [],
-    ])).toEqual('08-00:09:35 高等数学\n09:50-11:35 高等物理')
-    expect(getCourseSchedule([
-      [],
-      [],
-      [],
-      [],
-    ])).toEqual('')
-    expect(getCourseSchedule({
-      benchmark: {
-        date: '2022-09-23',
-        isOdd: true,
-      },
-      courses: {
-        odd: [
-          [],
-          [],
-          [],
-          [],
-          [],
-          [
-            '08-00:09:35 高等数学',
-            '09:50-11:35 高等物理',
-          ],
-          [],
-        ],
-        even: [],
-      },
-    })).toEqual('08-00:09:35 高等数学\n09:50-11:35 高等物理')
-    expect(getCourseSchedule({
-      benchmark: {
-        date: '2022-09-23',
-        isOdd: false,
-      },
-      courses: {
-        even: [
-          [],
-          [],
-          [],
-          [],
-          [],
-          [
-            '08-00:09:35 高等数学',
-            '09:50-11:35 高等物理',
-          ],
-          [],
-        ],
-        odd: [],
-      },
-    })).toEqual('08-00:09:35 高等数学\n09:50-11:35 高等物理')
-    expect(getCourseSchedule({
-      benchmark: {
-        date: '2022-09-26',
-        isOdd: true,
-      },
-      courses: {
-        even: [
-          [],
-          [],
-          [],
-          [],
-          [],
-          [
-            '08-00:09:35 高等数学',
-            '09:50-11:35 高等物理',
-          ],
-          [],
-        ],
-        odd: [],
-      },
-    })).toEqual('08-00:09:35 高等数学\n09:50-11:35 高等物理')
-    expect(getCourseSchedule({
-      benchmark: {
-        date: '2022-09-18',
-        isOdd: true,
-      },
-      courses: {
-        even: [
-          [],
-          [],
-          [],
-          [],
-          [],
-          [
-            '08-00:09:35 高等数学',
-            '09:50-11:35 高等物理',
-          ],
-          [],
-        ],
-        odd: [],
-      },
-    })).toEqual('08-00:09:35 高等数学\n09:50-11:35 高等物理')
-    expect(getCourseSchedule({
-      benchmark: {
-        date: '2022-09-18',
-        isOdd: true,
-      },
-      courses: {
-        even: [
-          [],
-          [],
-          [],
-          [],
-        ],
-        odd: [],
-      },
-    })).toEqual('')
+  test('getHolidaytts parses Jiejiari API response', async () => {
+    config.SWITCH = { holidaytts: true }
+    MockDate.set('2026-09-29 00:00:00')
+    axios.get = async (url) => {
+      expect(url).toBe('https://api.jiejiariapi.com/v1/holidays/2026')
+      return {
+        data: {
+          '2026-09-25': {
+            date: '2026-09-25',
+            name: '中秋节',
+            isOffDay: true,
+          },
+          '2026-10-01': {
+            date: '2026-10-01',
+            name: '国庆节',
+            isOffDay: true,
+          },
+          '2026-10-02': {
+            date: '2026-10-02',
+            name: '国庆节',
+            isOffDay: true,
+            },
+        },
+      }
+    }
+
+    const result = await getHolidaytts()
+    expect(result.holidaytts).toBe('还有2天就是10月1日国庆节了')
+    expect(result.wxHolidaytts[0].value).toContain('国庆节')
+    MockDate.reset()
+  })
+  test('getHolidaytts parses JSON string response', async () => {
+    config.SWITCH = { holidaytts: true }
+    MockDate.set('2026-09-29 00:00:00')
+    axios.get = async () => ({
+      data: JSON.stringify({
+        '2026-10-01': {
+          date: '2026-10-01',
+          name: '国庆节',
+          isOffDay: true,
+          },
+      }),
+    })
+
+    await expect(getHolidaytts()).resolves.toMatchObject({
+      holidaytts: '还有2天就是10月1日国庆节了',
+    })
     MockDate.reset()
   })
   test('getWeatherIcon', () => {
     expect(getWeatherIcon('晴')).toEqual('☀️')
     expect(getWeatherIcon('未知')).toEqual('🌈')
-  })
-  test('getBing', async () => {
-    axios.get = async () => {
-      throw new Error()
-    }
-    expect(await getBing()).toEqual({})
-    axios.get = async () => ({
-      status: 200,
-      data: {
-        images: [{
-          url: 'url',
-          title: 'title',
-          copyright: 'abc(def)ghi(jkl)',
-        }],
-      },
-    })
-    expect(await getBing()).toEqual({
-      imgUrl: 'https://cn.bing.com/url',
-      imgTitle: 'title',
-      imgContent: 'abcghi(jkl)',
-    })
   })
   test('buildTianApi', async () => {
     config.TIAN_API = {}
@@ -1369,11 +1182,9 @@ describe('services', () => {
     config.TIAN_API.morningGreeting = true
     config.TIAN_API.eveningGreeting = true
     config.TIAN_API.weather = true
-    config.TIAN_API.networkHot = true
     await expect(getTianApiMorningGreeting()).resolves.toEqual('xxx')
     await expect(getTianApiEveningGreeting()).resolves.toEqual('xxx')
     await expect(getTianApiWeather(user)).resolves.toEqual([{ content: 'xxx' }])
-    await expect(getTianApiNetworkHot(user)).resolves.toEqual('')
   })
   test('model2Data', () => {
     expect(model2Data()).toEqual(null)
@@ -1396,10 +1207,10 @@ describe('services', () => {
       今天是我们相识的第{{love_day.DATA}}天
       {{birthday_message.DATA}}
       ---
-      {{moment_copyrighting.DATA}}
+      {{earthy_love_words.DATA}}
       
       
-      {{poetry_title.DATA}} {{poetry_content.DATA}}
+      {{one_talk.DATA}}
     `,
     })
     expect(model2Data('0001', {
