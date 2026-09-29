@@ -4,9 +4,10 @@ import { getAggregatedData } from './src/services/index.js'
  * 参数测试函数
  */
 export default async function mainForTest() {
-  // 处理好的用户数据
   const aggregatedData = await getAggregatedData()
-  aggregatedData.forEach((item) => {
-    console.log(item.wxTemplateParams)
+  const fields = new Set()
+  aggregatedData.forEach(({ wxTemplateParams }) => {
+    Object.keys(wxTemplateParams || {}).forEach((field) => fields.add(field))
   })
+  console.log(`共生成 ${aggregatedData.length} 组参数，字段：${[...fields].join(', ')}`)
 }

@@ -7,24 +7,13 @@ import {
 } from './src/services/index.js'
 import config from './config/exp-config.js'
 import cornTime from './config/server-config.js'
+import getRuntimeConfig from './config/runtime-config.js'
 import mainForTest from './main-for-test.js'
 import { RUN_TIME_STORAGE } from './src/store/index.js'
 
 export default async function mainForProd() {
-  // 获取accessToken
-  console.log('\n\n')
-  console.log(dayjs().format('YYYY-MM-DD HH:mm:ss'))
-
-  // 处理好的用户数据
-  console.log('---')
-  console.log('【数据获取】开始')
+  console.log(`\n推送任务开始：${dayjs().format('YYYY-MM-DD HH:mm:ss')}`)
   const aggregatedData = await getAggregatedData()
-  console.log('【数据获取】结束')
-  console.log('---')
-
-  // 公众号推送消息
-  console.log('---')
-  console.log('【常规模板】推送开始')
   const {
     needPostNum,
     successPostNum,
@@ -32,8 +21,6 @@ export default async function mainForProd() {
     successPostIds,
     failPostIds,
   } = await sendMessageReply(aggregatedData, null, null, config.USE_PASSAGE)
-  console.log('【常规模板】推送结束')
-  console.log('---')
 
   // 获取回执信息
   const callbackTemplateParams = getCallbackTemplateParams({
@@ -43,15 +30,13 @@ export default async function mainForProd() {
     successPostIds,
     failPostIds,
   })
-
   // 发送回执
   if (config.CALLBACK_TEMPLATE_ID) {
-    console.log('---')
-    console.log('【推送完成提醒】推送开始')
+    console.log('推送完成，发送回执通知')
     await sendMessageReply(config.CALLBACK_USERS, config.CALLBACK_TEMPLATE_ID, callbackTemplateParams, config.USE_PASSAGE)
-    console.log('【推送完成提醒】推送结束')
-    console.log('---')
   }
+
+  console.log(`推送任务结束：成功 ${successPostNum}/${needPostNum}，失败 ${failPostNum}`)
 
   // 释放运行时临时存储的数据
   Object.keys(RUN_TIME_STORAGE).forEach((o) => {
@@ -60,15 +45,16 @@ export default async function mainForProd() {
 }
 
 const main = () => {
-  if (process.env.APP_MODE === 'params-log') {
+  const { appMode } = getRuntimeConfig()
+
+  if (appMode === 'params-log') {
     mainForTest()
-  } else if (process.env.APP_MODE === 'server') {
-    console.log('======【定时推送服务已启动, enjoying it】======')
-    console.log(`目前定时推送的配置为：【${cornTime}】`)
+  } else if (appMode === 'server') {
+    console.log(`定时推送服务已启动，计划：${cornTime}`)
     schedule.scheduleJob(cornTime, () => {
       mainForProd()
     })
-  } else if (process.env.APP_MODE === 'prod') {
+  } else if (appMode === 'prod') {
     mainForProd()
   }
 }

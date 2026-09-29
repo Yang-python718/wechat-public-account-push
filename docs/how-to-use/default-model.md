@@ -21,10 +21,6 @@
 温馨提示：{{notice.DATA}}
 值得纪念：{{birthday_message.DATA}}
 💗：{{earthy_love_words.DATA}}
-每日一句😋
-中文：{{note_ch.DATA}}
-English：{{note_en.DATA}}
-和{{poetry_author.DATA}}约个会：{{poetry_content.DATA}}
 ```
 
 ![](../../img/novice/temp-xg.png)
@@ -64,12 +60,6 @@ English：{{note_en.DATA}}
 3.{{wx_birthday_2.DATA}} 
 4.{{wx_birthday_3.DATA}} 
 
-课表：
-1.{{wx_course_schedule_0.DATA}} 
-2.{{wx_course_schedule_1.DATA}} 
-3.{{wx_course_schedule_2.DATA}} 
-4.{{wx_course_schedule_3.DATA}} 
-5.{{wx_course_schedule_4.DATA}}
 ```
 
 

@@ -53,10 +53,6 @@
      温馨提示：{{notice.DATA}}
      值得纪念：{{birthday_message.DATA}}
      💗：{{earthy_love_words.DATA}}
-     每日一句😋
-     中文：{{note_ch.DATA}}
-     English：{{note_en.DATA}}
-     和{{poetry_author.DATA}}约个会：{{poetry_content.DATA}}
      ```
 
      效果
